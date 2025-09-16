@@ -1,0 +1,144 @@
+# 基础参数配置
+
+#========================================
+# model 有关的参数部分
+model: VQVAE_ps
+resize_width: 224
+num_hiddens: 128 # 每一层channel维度的基数
+num_residual_hiddens: 64 # 类似于ResNet中的瓶颈块设计，可以帮助网络学习更紧凑的特征表示
+num_residual_layers: 3
+in_ch: 3 # 输入图像的维度
+num_embeddings: 512
+embedding_dim: 128
+## 模型层结构
+conv_type: MultitaskMaskConvChange
+deconv_type: MultitaskMaskDeConvChange
+bn_type: NonAffineNoStatsBN # MultitaskNonAffineBN
+conv_init: signed_constant 
+deconv_init: signed_constant
+embedding_type: MultitaskMaskEmbeddingChange
+use_my_embedding: True
+conv_use_bias: False
+num_tasks: 1
+#========================================
+
+# 和vq有关的参数
+#========================================
+no_change_vq: True # 不对vq的embedding进行自动的EWA
+finetune_vq: True # 但是仍然fine-tune vq
+commitment_cost: 0.25
+decay: 0.99
+#========================================
+
+# 和优化训练有关的参数
+#========================================
+trainer: "default_ps"
+lr: 0.001
+epochs_loraDstill: 20
+milestones_lora: [40]
+iter_lim: -1
+reinit_changes_from_zero: True
+lora_weight_org_ver: 2
+imagenet_style_normalize: True
+lambda_IFL: 0.05
+save_curbest_model: True
+opt_topology: False
+milestones_other: [40]
+mask_init_method: "weight"
+warmup_IFL: False
+#========================================
+
+
+# 和dataloader有关的参数
+# ========================================
+batch_size: 128
+test_batch_size: 128
+# ========================================
+
+# 和数据集有关的参数
+#========================================
+data: /workspace0/jhu2/Projects/VQVAE/data
+set: EvalDataset
+dataset_loading_workers: 10
+prestage_loading_all_data: True
+FT_num_selected_label: 10
+#========================================
+
+
+# 和lora有关的参数
+#========================================
+enable_lora: True
+enable_dora: False
+rank: 1
+alpha: 16
+dora_simple: False
+loraSra_paraBgt_list: [1,5]
+with_lora_change: True
+lora_rank: 0
+lora_alpha: 16
+flag_save_weight_matrix: False
+FLAG_RETURN_SIGVALUE_MAGNITUDE_RATIO: True
+flag_reinit_in_separate_training: True
+#========================================
+
+# 具体任务 task 有关的参数部分
+#========================================
+broken_pixel_ratio: 0.1
+low_resolution_ratio: 4
+bias_color_channel: 0
+bias_color_ratio: [0.1,0.3]
+anomaly_num_max: 10
+anomaly_size: 8
+anomaly_poly_order: 6
+#========================================
+
+# 和随机种子有关的参数
+#========================================
+seed: 2
+distill_dataset_seed: 2
+fix_np_seed: True
+#========================================
+
+# 和 checkpoint 有关的参数
+#========================================
+save_chk_point: False
+log_dir: logs
+
+# 四个任务的pre-ft checkpoint 的所在目录
+# ========================================
+pre_ft_ckp_name: FT_curBest
+pre_ft_dir_case_resEnhance: ckpt_models/Formal_low_resolution
+pre_ft_dir_case_colorCorrect: ckpt_models/Formal_color_randomChannel
+pre_ft_dir_case_noiseRemove: ckpt_models/Full_FT_miImpaint_salt_pepper_0.1
+pre_ft_dir_case_anomalyDetect: ckpt_models/FullFT_anomaly_max10_size8_order6
+# ========================================
+
+# 共用的distill dataset的保存路径
+# ========================================
+saveDir_distill_dataset: datasets
+# ========================================
+
+# 四个具体任务相关的参数
+#========================================
+task_list: ["resEnhance", "colorCorrect", "noiseRemove", "anomalyDetect"]
+load_distill_dataset_resEnhance: True
+load_distill_dataset_colorCorrect: True
+load_distill_dataset_noiseRemove: True
+load_distill_dataset_anomalyDetect: True
+#========================================
+
+# 训练过程的控制
+#========================================
+flag_jump_test: False # 跳过测试
+save_curbest_model: False # 保存当前最好的模型
+milestones_scheduler: [1000] # 优化器学习率衰减的里程碑
+gamma_scheduler: 0.1 # 优化器学习率衰减系数
+DEBUG_MODE: False
+epochs_train_per_DK_level: 100 # 每个Distilled Knowledge Level对应的训练的epochs 数量
+#========================================
+
+# 有关结果展示的参数
+#========================================
+show_dataIndex_list: [7, 14, 21, 28, 35] # 将会展示的数据的索引
+#========================================
+
