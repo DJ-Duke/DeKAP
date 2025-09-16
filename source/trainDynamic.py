@@ -19,13 +19,13 @@ import data
 import schedulers
 import trainers
 from trainers.trainer_ps import test_anomaly_detection
-import utils
 import time
 
 import seaborn as sns
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
+import source.utils as utils
 from source.utils_comm import *
 from data.eval_datasets_core import DistillDataset, TransformDistillDataset
 from z_paper_evaluations.eval_1 import get_distill_dataloader
@@ -129,12 +129,13 @@ def multi_level_DK_distill(task_name, flag_directly_load=True):
     model = utils.get_model()
     model = utils.set_gpu(model)
     model.apply(add_changes_to_layer)
+    #TODO 2025-09-16 工作到这里
     # 加载模型
     preft_model_dir = getattr(args, f"pre_ft_dir_case_{task_name}")
     load_from_ckp(model, dir=preft_model_dir, model_name=args.pre_ft_ckp_name)
     # 模型基础设置，保证运行在FT的阶段。
     model.apply(lambda m: setattr(m, "task", 0)) # 使用第几个stored change来进行训练
-    model.apply(lambda m: setattr(m, "pretrain_zfft", False)) # 告诉模型当前是finetune段。
+    model.apply(lambda m: setattr(m, "pretrain", False)) # 告诉模型当前是finetune段。
     naming_layers(model)
 
     set_model_sparsity_all_zero(model, all_ones=True)

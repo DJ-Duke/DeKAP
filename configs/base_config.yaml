@@ -20,6 +20,7 @@ embedding_type: MultitaskMaskEmbeddingChange
 use_my_embedding: True
 conv_use_bias: False
 num_tasks: 1
+num_ft_changes: 1
 #========================================
 
 # 和vq有关的参数

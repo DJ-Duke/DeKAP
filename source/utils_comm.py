@@ -4,6 +4,10 @@ import torch
 
 from source.args import args
 
+def add_changes_to_layer(module):
+    if hasattr(module, 'add_changes'):
+        module.add_changes()
+
 def set_seeds(given_seed=None):
     if given_seed is None: 
         seed = args.seed

@@ -11,6 +11,7 @@ import torch.backends.cudnn as cudnn
 from args import args
 import numpy as np
 
+
 def calculate_psnr(data, data_recon):
     with torch.no_grad():
         data_numpy = data.detach().cpu().float().numpy()
@@ -24,42 +25,6 @@ def calculate_psnr(data, data_recon):
         diff = np.mean((np.float64(recon_int8) - np.float64(data_int8))**2, (1, 2, 3))
         batch_psnr = 10 * np.log10(255.0**2 / np.mean(diff))
         return batch_psnr
-
-def cond_cache_masks(m,):
-    if hasattr(m, "cache_masks"):
-        m.cache_masks()
-
-
-def cond_cache_weights(m, t):
-    if hasattr(m, "cache_weights"):
-        m.cache_weights(t)
-
-
-def cond_clear_masks(m,):
-    if hasattr(m, "clear_masks"):
-        m.clear_masks()
-
-
-def cond_set_mask(m, task):
-    if hasattr(m, "set_mask"):
-        m.set_mask(task)
-
-
-def cache_masks(model):
-    model.apply(cond_cache_masks)
-
-
-def cache_weights(model, task):
-    model.apply(lambda m: cond_cache_weights(m, task))
-
-
-def clear_masks(model):
-    model.apply(cond_clear_masks)
-
-
-def set_mask(model, task):
-    model.apply(lambda m: cond_set_mask(m, task))
-
 
 def freeze_model_weights(model: nn.Module):
     for n, m in model.named_modules():
