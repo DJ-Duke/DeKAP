@@ -159,7 +159,7 @@ class MultitaskMaskConvChange(nn.Conv2d):
             return x
 
         if getattr(self, "using_backup_changes", False):
-            w = self.weight + self.backup_changes[self.task]
+            w = self.weight + self.backup_changes[self.change_idx]
             x = F.conv2d(
                 x, w, self.bias, self.stride, self.padding, self.dilation, self.groups
             )
@@ -190,7 +190,7 @@ class MultitaskMaskConvChange(nn.Conv2d):
         return f"ConvChange({self.in_channels}, {self.out_channels})"
     
     def obtain_full_ft_sigvalue(self):
-        fullft_changes = self.backup_changes[self.task].data
+        fullft_changes = self.backup_changes[self.change_idx].data
         weight_type = 'conv'
         sigvalue_vec, parameter_per_rank_vec, maximum_rank = obtain_full_ft_sigvalue_func(fullft_changes, weight_type, self.module_name, self.weight, self.prop_parameter_per_rank)
         self.fullft_sigvalue_vec = sigvalue_vec
@@ -307,7 +307,7 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
             return x
         
         if getattr(self, "using_backup_changes", False):
-            w = self.weight + self.backup_changes[self.task]
+            w = self.weight + self.backup_changes[self.change_idx]
             x = F.conv_transpose2d(
                 x, w, self.bias, self.stride, self.padding,
                 output_padding=self.output_padding,  # 新增output_padding参数
@@ -342,7 +342,7 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
         return f"MultitaskMaskDeConvChange({self.in_channels}, {self.out_channels})"
 
     def obtain_full_ft_sigvalue(self):
-        fullft_changes = self.backup_changes[self.task].data
+        fullft_changes = self.backup_changes[self.change_idx].data
         weight_type = 'deconv'
         sigvalue_vec, parameter_per_rank_vec, maximum_rank = obtain_full_ft_sigvalue_func(fullft_changes, weight_type, self.module_name, self.weight, self.prop_parameter_per_rank)
         self.fullft_sigvalue_vec = sigvalue_vec
@@ -458,7 +458,7 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
             return self.weight
         
         if getattr(self, "using_backup_changes", False):
-            w = self.weight + self.backup_changes[self.task]
+            w = self.weight + self.backup_changes[self.change_idx]
             return w
         
         if self.with_lora_change:
@@ -482,7 +482,7 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
         return f"MultitaskMaskEmbeddingChange({self._num_embeddings}, {self._embedding_dim})"
     
     def obtain_full_ft_sigvalue(self):
-        fullft_changes = self.backup_changes[self.task].data
+        fullft_changes = self.backup_changes[self.change_idx].data
         weight_type = 'embed'
         sigvalue_vec, parameter_per_rank_vec, maximum_rank = obtain_full_ft_sigvalue_func(fullft_changes, weight_type, self.module_name, self.weight, self.prop_parameter_per_rank)
         self.fullft_sigvalue_vec = sigvalue_vec

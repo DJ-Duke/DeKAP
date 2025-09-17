@@ -26,7 +26,7 @@ num_ft_changes: 1
 # 和vq有关的参数
 #========================================
 no_change_vq: True # 不对vq的embedding进行自动的EWA
-finetune_vq: True # 但是仍然fine-tune vq
+finetune_vq: True # 但是仍然fine-tune vq embedding
 commitment_cost: 0.25
 decay: 0.99
 #========================================
@@ -73,7 +73,7 @@ enable_dora: False
 rank: 1
 alpha: 16
 dora_simple: False
-loraSra_paraBgt_list: [1,5]
+loraSra_paraBgt_list: [1,3,5]
 with_lora_change: True
 lora_rank: 0
 lora_alpha: 16
@@ -116,7 +116,7 @@ pre_ft_dir_case_anomalyDetect: ckpt_models/FullFT_anomaly_max10_size8_order6
 
 # 共用的distill dataset的保存路径
 # ========================================
-saveDir_distill_dataset: datasets
+saveDir_distill_dataset: datasets # distill dataset要放在这里。
 # ========================================
 
 # 四个具体任务相关的参数
