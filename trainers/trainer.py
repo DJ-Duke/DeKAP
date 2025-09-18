@@ -150,7 +150,7 @@ def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, ve
         wandb.log({f"train/IFL_loss": train_IFL_loss}, step=epoch)
     print(f"=> Train Epoch {epoch}: Recon loss: {train_recon_loss:.4f}, Perplexity: {train_perplexity:.4f}, PSNR: {train_psnr:.4f}")
 
-def test(model, writer, criterion, test_loader, epoch, verbose=True, flag_draw_example_images=False, rank_plan=None, criterion_IFL=None):
+def test(model, criterion, test_loader, epoch, verbose=True, flag_draw_example_images=False, rank_plan=None, criterion_IFL=None):
     model.zero_grad()
     model.eval()
     test_loss = 0
@@ -229,19 +229,19 @@ def test(model, writer, criterion, test_loader, epoch, verbose=True, flag_draw_e
     if criterion_IFL is not None:
         test_IFL_loss /= num_samples
     if rank_plan is not None:
-        wandb.log(f"test/Total_loss/{rank_plan}", test_loss, step=epoch)
-        wandb.log(f"test/Recon_loss/{rank_plan}", test_recon, step=epoch)
-        wandb.log(f"test/Perplexity/{rank_plan}", test_perplexity, step=epoch) 
-        wandb.log(f"test/PSNR/{rank_plan}", test_psnr, step=epoch)
+        wandb.log({f"test/Total_loss/{rank_plan}": test_loss}, step=epoch)
+        wandb.log({f"test/Recon_loss/{rank_plan}": test_recon}, step=epoch)
+        wandb.log({f"test/Perplexity/{rank_plan}": test_perplexity}, step=epoch) 
+        wandb.log({f"test/PSNR/{rank_plan}": test_psnr}, step=epoch)
         if criterion_IFL is not None:
-            wandb.log(f"test/IFL_loss/{rank_plan}", test_IFL_loss, step=epoch)
+            wandb.log({f"test/IFL_loss/{rank_plan}": test_IFL_loss}, step=epoch)
     else:
-        wandb.log(f"test/Total_loss", test_loss, step=epoch)
-        wandb.log(f"test/Recon_loss", test_recon, step=epoch)
-        wandb.log(f"test/Perplexity", test_perplexity, step=epoch) 
-        wandb.log(f"test/PSNR", test_psnr, step=epoch)
+        wandb.log({"test/Total_loss": test_loss}, step=epoch)
+        wandb.log({"test/Recon_loss": test_recon}, step=epoch)
+        wandb.log({"test/Perplexity": test_perplexity}, step=epoch) 
+        wandb.log({"test/PSNR": test_psnr}, step=epoch)
         if criterion_IFL is not None:
-            wandb.log(f"test/IFL_loss", test_IFL_loss, step=epoch)
+            wandb.log({"test/IFL_loss": test_IFL_loss}, step=epoch)
 
     print_string = f"=> Test Epoch {epoch}: Total loss: {test_loss:.4f}, Recon loss: {test_recon:.4f}, Perplexity: {test_perplexity:.4f}, PSNR: {test_psnr:.4f}"
     if criterion_IFL is not None:

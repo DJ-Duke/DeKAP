@@ -2,7 +2,7 @@ import random
 import numpy as np
 import torch
 import pathlib
-from source.args import args
+from .args import args
 
 def add_changes_to_layer(module):
     if hasattr(module, 'add_changes'):
@@ -35,7 +35,7 @@ def load_from_ckp(model, dir, model_name):
 def naming_layers(model):
     module_index = 0
     for n, m in model.named_modules():
-        if hasattr(m, "sparsity"):
+        if hasattr(m, "with_lora_change"):
             m.module_name = n
             m.module_index = module_index
             module_index += 1

@@ -1,3 +1,3 @@
-from data.distill_dataset import DistillDataset
+from .distill_dataset import DistillDataset
 
 __all__ = ["DistillDataset"]

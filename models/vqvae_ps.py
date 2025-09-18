@@ -4,7 +4,6 @@ from torch.nn.functional import relu, avg_pool2d
 from torch.distributions.normal import Normal
 from torch.distributions import kl_divergence
 from torch.nn import functional as F
-from . import modules
 
 from source.args import args
 from .builder import Builder

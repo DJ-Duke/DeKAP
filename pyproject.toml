@@ -1,0 +1,53 @@
+[project]
+name = "dekap"
+version = "0.1.0"
+description = "DEKAP (open-source) - uv/venv managed"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+license = {text = "MIT"}
+authors = [{name = "Jingzhi Hu"}]
+
+dependencies = [
+  # --- SciPy stack ---
+  "numpy",
+  "scipy",
+  "pandas",
+  "numexpr",
+  "scikit-learn",
+  "numba",
+  "pynndescent",
+
+  # --- Plotting / notebooks ---
+  "matplotlib",
+  "seaborn",
+  "ipykernel",
+
+  # --- Utils ---
+  "tqdm",
+  "requests",
+  "pyyaml",
+  "psutil",
+  "pillow",
+  "fire",
+  "wandb",
+
+  # --- Your extras from env ---
+  "visdom",
+  "gdown",
+  "kagglehub",
+
+  # Optional but handy
+  "networkx",
+  "sympy",
+]
+
+[project.optional-dependencies]
+# 可选：需要 Gurobi 的用户自己装 license 后再安装这一组
+gurobi = ["gurobipy"]
+
+[tool.uv]
+# uv 默认会在项目根目录创建 .venv
+dev-dependencies = [
+  # 开发/调试工具（可删）
+  "ipython",
+]

@@ -7,18 +7,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import wandb  
-import torchvision.models as models
-from torchvision.models import VGG16_Weights
+import fire
 
-from args import args
+from .args import args
 import trainers
-from source.utils import *
-from source.utils_comm import *
-
-# 设置工作目录为当前文件夹
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-# 打印当前运行目录
-print(os.getcwd())
+from .utils import *
+from .utils_comm import *
 
 def create_run_base_dir_task(task_name):
     run_base_dir = pathlib.Path(f"{args.log_dir}/{args.name}/{task_name}")
@@ -27,7 +21,7 @@ def create_run_base_dir_task(task_name):
 
 def prepare_for_lora_training(model):
     # 进行压缩的过程。
-    model.apply(lambda m: hasattr(m, 'with_lora_change') and setattr(m, 'with_lora_change', False))
+    model.apply(lambda m: hasattr(m, 'with_lora_change') and setattr(m, 'with_lora_change', True))
     # 预先对model引入lora进行一些必要的设置。
     model.apply(lambda m: m.backup_changes() if hasattr(m, 'backup_changes') else None)
     
@@ -41,6 +35,8 @@ def prepare_criterion():
     criterion = F.mse_loss
     # 设置perception的优化criterion
     # 使用新的weights参数替代已废弃的pretrained参数
+    import torchvision.models as models
+    from torchvision.models import VGG16_Weights
     vgg = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
     IFL_feature_extractor = nn.Sequential(*list(vgg.children())[:16]).to(args.device)
     IFL_feature_extractor.eval()
@@ -77,7 +73,7 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
     model.apply(lambda m: setattr(m, "pretrain", False)) # 告诉模型当前是finetune段，而非pretrain阶段。
     naming_layers(model) # 命名模型中的各层并标记序号。
 
-    model.apply(lambda m: hasattr(m, 'with_lora_change') and setattr(m, 'with_lora_change', False))
+    model.apply(lambda m: hasattr(m, 'with_lora_change') and setattr(m, 'with_lora_change', True))
 
     # 使用数据集, 这里假设通过eval_1已经生成了distill dataset，所以直接加载。
     assert flag_directly_load is True, "在trainDynamic中，只使用直接加载数据集。"
@@ -87,7 +83,7 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
         raise NotImplementedError("[ERROR] 暂时只能使用已经打包好的数据集，后续代码正在整理中。")
     else:
         distill_dataloader_train = get_distill_dataloader(task_name, model, None, "train", directly_load, flag_use_ori_label)
-        distill_dataloader_test = get_distill_dataloader(task_name, model, None, "test", directly_load, flag_use_ori_label)
+        distill_dataloader_test, distill_dataloader_draw = get_distill_dataloader(task_name, model, None, "test", directly_load, flag_use_ori_label)
 
     trainer = getattr(trainers, args.trainer)
     train, test = trainer.train, trainer.test
@@ -138,17 +134,23 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
 
         # 这个评估将会非常耗时。
         rkp = np.mod(total_epochs, len(paraBgt_list))
-        test_total_loss = test(model, criterion, distill_dataloader_test, total_epochs+1, verbose=True, flag_draw_example_images=False, rank_plan=rkp, criterion_IFL=IFL_feature_extractor)
-        wandb.log({f"test/Test_Epoch_Loss": test_total_loss}, step=total_epochs)
+        test_total_loss = test(model, criterion, distill_dataloader_test, total_epochs, verbose=True, flag_draw_example_images=False, rank_plan=rkp, criterion_IFL=IFL_feature_extractor)
+        # wandb.log({f"test/Test_Epoch_Loss": test_total_loss}, step=total_epochs)
         
-        if test_total_loss < cur_min_loss:
-            cur_min_loss = test_total_loss
-            print(f"!!! Current best PT at Epoch {total_epochs}, Test Total Loss: {test_total_loss:.2f}")
-            wandb.log({f"test/CurBestLoss": test_total_loss}, step=total_epochs+1)
-            if args.save_curbest_model:
-                torch.save(model.state_dict(), run_base_dir / f"LoRA_curBest.pt")
-            cur_best_epoch = total_epochs
+        # if test_total_loss < cur_min_loss:
+        #     cur_min_loss = test_total_loss
+        #     print(f"!!! Current best PT at Epoch {total_epochs}, Test Total Loss: {test_total_loss:.2f}")
+        #     wandb.log({f"test/CurBestLoss": test_total_loss}, step=total_epochs+1)
+        #     if args.save_curbest_model:
+        #         torch.save(model.state_dict(), run_base_dir / f"LoRA_curBest.pt")
+        #     cur_best_epoch = total_epochs
         scheduler_list_update(scheduler)
-        wandb.log({f"test/CurBestEpoch": cur_best_epoch}, step=total_epochs+1)
+        wandb.log({f"test/CurBestEpoch": cur_best_epoch}, step=total_epochs)
     wandb.finish()
     return
+
+def main():
+    fire.Fire(multi_level_DK_distill)
+
+if __name__ == "__main__":
+    main()

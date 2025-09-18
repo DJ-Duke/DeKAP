@@ -1,4 +1,5 @@
 # 基础参数配置
+# 详细参数来源于：z_paper_evaluations/configs/subconfig_rev_eval_1.yaml
 
 #========================================
 # model 有关的参数部分
@@ -108,20 +109,21 @@ log_dir: logs
 # 四个任务的pre-ft checkpoint 的所在目录
 # ========================================
 pre_ft_ckp_name: FT_curBest
-pre_ft_dir_case_resEnhance: ckpt_models/Formal_low_resolution
-pre_ft_dir_case_colorCorrect: ckpt_models/Formal_color_randomChannel
-pre_ft_dir_case_noiseRemove: ckpt_models/Full_FT_miImpaint_salt_pepper_0.1
-pre_ft_dir_case_anomalyDetect: ckpt_models/FullFT_anomaly_max10_size8_order6
+pre_ft_dir_case_resEnhance: ckpt_models/full_ft_low_resolution
+pre_ft_dir_case_colorCorrect: ckpt_models/full_ft_color_correction
+pre_ft_dir_case_noiseRemove: ckpt_models/full_ft_noise_removal
+pre_ft_dir_case_anomalyDetect: ckpt_models/full_ft_anomaly_detection
 # ========================================
 
 # 共用的distill dataset的保存路径
 # ========================================
-saveDir_distill_dataset: datasets # distill dataset要放在这里。
+# saveDir_distill_dataset: datasets/distilled_dataset # distill dataset要放在这里。 # 目前是测试用暂时注释掉了这个路径，用了原来程序的文件路径。
+saveDir_distill_dataset: /workspace0/jhu2/Projects/ZFFT_supsup/z_paper_evaluations/generated_distill_dataset
 # ========================================
 
 # 四个具体任务相关的参数
 #========================================
-task_list: ["resEnhance", "colorCorrect", "noiseRemove", "anomalyDetect"]
+task_list: ["resEnhance"] # "colorCorrect", "noiseRemove", "anomalyDetect"
 load_distill_dataset_resEnhance: True
 load_distill_dataset_colorCorrect: True
 load_distill_dataset_noiseRemove: True
@@ -136,10 +138,12 @@ milestones_scheduler: [1000] # 优化器学习率衰减的里程碑
 gamma_scheduler: 0.1 # 优化器学习率衰减系数
 DEBUG_MODE: False
 epochs_train_per_DK_level: 100 # 每个Distilled Knowledge Level对应的训练的epochs 数量
+pre_train: False
 #========================================
 
 # 有关结果展示的参数
 #========================================
-show_dataIndex_list: [7, 14, 21, 28, 35] # 将会展示的数据的索引
+flag_output_test_set_image: True
+to_save_list: [237,591, 87, 925, 235, 221]
 #========================================
 

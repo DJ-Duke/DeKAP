@@ -10,7 +10,8 @@ from pathlib import Path
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from args import args
+
+from source.args import args
 
 def pil_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)

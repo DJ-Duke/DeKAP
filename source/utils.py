@@ -6,17 +6,16 @@ import pathlib
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import models
-import models.module_util as module_util
 import torch.backends.cudnn as cudnn
 import os
-from args import args
 import numpy as np
 from tqdm import tqdm
 from torch.optim.lr_scheduler import MultiStepLR
 
+import models
 from data import DistillDataset
-from source.utils_comm import *
+from .args import args
+from .utils_comm import *
 
 
 def calculate_psnr(data, data_recon):
@@ -119,8 +118,8 @@ def get_distill_dataloader(task_name, model, data_loader, str_train_test, direct
     batch_size = args.batch_size if str_train_test == "train" else args.test_batch_size
     kwargs = {"num_workers": 0, "pin_memory": False, "shuffle": shuffle_flag, "batch_size": batch_size}
     distill_dataloader = torch.utils.data.DataLoader(distill_dataset, **kwargs)
-    if str_train_test == "test" and args.eval_index == 1:
-        batch_size = 1 if getattr(args, "flag_output_test_set_image", False) else batch_size
+    if str_train_test == "test" and args.flag_output_test_set_image == True:
+        # batch_size = 1 if getattr(args, "flag_output_test_set_image", False) else batch_size
         subset_indices = args.to_save_list
         if not subset_indices == 'None':
             subset_dataset = torch.utils.data.Subset(distill_dataset, subset_indices)
@@ -202,7 +201,7 @@ def allocate_rank_given_mat_and_index(sigvalueVparam_mat, cumsum_parameter_ratio
 
     real_budget = selected_param_num / total_num_params
     print(f"====> INFO Selected parameter number: {selected_param_num}, parameter budget satisfies: {real_budget:.6f}% target budget: {parameter_budget:.6f}")
-    wandb.log({"rank_list": str(new_rank_list)})
+    wandb.config.update({"rank_list": str(new_rank_list)})
     return new_rank_list, rank_change_list
 
 def gen_optimizer_and_scheduler_loraSRA_list(
@@ -235,6 +234,6 @@ def gen_optimizer_and_scheduler_loraSRA_list(
     
     lr = args.lr
     optimizer_opt = optim.Adam(params_opt, lr=lr, weight_decay=args.wd)
-    scheduler_opt = MultiStepLR(optimizer_opt, milestones=milestone, gamma=args.gamma_lora)
+    scheduler_opt = MultiStepLR(optimizer_opt, milestones=milestone, gamma=args.gamma_scheduler)
     
     return optimizer_opt, scheduler_opt

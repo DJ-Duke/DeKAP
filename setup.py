@@ -12,7 +12,6 @@ setup(
     entry_points={
         "console_scripts": [
             "train_dynamic = source.distillation:main",
-            "weight_sensitivity = z_paper_evaluations.eval_rev1_rd5:main",
         ],
     },
     install_requires=[],

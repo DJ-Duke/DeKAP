@@ -4,14 +4,11 @@ import torch.nn.functional as F
 import math
 import numpy as np
 from tqdm import tqdm
-
-import models.module_util as module_util
-
-from args import args as pargs
-
 from scipy.stats import ortho_group
 import scipy.io
 import os
+
+from source.args import args as pargs
 
 StandardConv = nn.Conv2d
 StandardBN = nn.BatchNorm2d
@@ -110,7 +107,7 @@ class MultitaskMaskConvChange(nn.Conv2d):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if pargs.train_weight_tasks == 0: # Default false
+        if pargs.pre_train == 0: # Default false
             self.weight.requires_grad = False
 
         self.with_lora_change = getattr(pargs, "with_lora_change", False)
@@ -254,7 +251,7 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if pargs.train_weight_tasks == 0:  # Default true
+        if pargs.pre_train == 0:  # Default true
             self.weight.requires_grad = False
 
         self.with_lora_change = getattr(pargs, "with_lora_change", False)
@@ -409,7 +406,7 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if pargs.train_weight_tasks == 0: # Default false
+        if pargs.pre_train == 0: # Default false
             self.weight.requires_grad = False
 
         self.with_lora_change = getattr(pargs, "with_lora_change", False)
@@ -454,7 +451,7 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
     @property
     def my_weight(self):
         # alphas, num_tasks_learned 这些参数应该是在reinit.py中定义的。
-        if getattr(self, "pretrain_zfft", False):
+        if getattr(self, "pretrain", False):
             return self.weight
         
         if getattr(self, "using_backup_changes", False):

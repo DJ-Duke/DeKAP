@@ -1,5 +1,4 @@
 from copy import deepcopy
-import parser as _parser
 import argparse
 import sys
 import yaml
@@ -129,20 +128,16 @@ def parse_arguments():
 
 def get_config(args):
     # get commands from command line
-    override_args = _parser.argv_to_vars(sys.argv)
-    copy_args = deepcopy(args)
     try:
         # load yaml file
+        # 打印当前目录
+        print(f"[!] Current directory: {os.getcwd()}")
         with open(args.config) as f:
             loaded_yaml = yaml.safe_load(f)
         
         # 然后用当前配置更新args
         args.__dict__.update(loaded_yaml)
         print(f"=> Reading YAML config from {args.config}")
-        
-        # 最后用命令行参数更新args（确保最高优先级）
-        for arg_name in override_args:
-            setattr(args, arg_name, copy_args.__dict__[arg_name])
             
         return args
             
