@@ -95,8 +95,7 @@ pre_ft_dir_case_anomalyDetect: ckpt_models/full_ft_anomaly_detection
 
 # shared distill dataset save path
 # ========================================
-# saveDir_distill_dataset: datasets/distilled_dataset # distill dataset要放在这里。 # 目前是测试用暂时注释掉了这个路径，用了原来程序的文件路径。
-saveDir_distill_dataset: /workspace0/jhu2/Projects/ZFFT_supsup/z_paper_evaluations/generated_distill_dataset
+saveDir_distill_dataset: datasets/distilled_dataset 
 # ========================================
 
 # task related parameters, used when training the model

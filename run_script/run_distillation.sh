@@ -1,9 +1,8 @@
 #!/bin/bash
 # bash run_script/run_distillation.sh
-# Activate the virtual environment
+
 source .venv/bin/activate
 
-# python source/trainDynamic.py --task_list resEnhance --flag_directly_load True
 python process/distillation.py \
     --gpu_id 0 \
     --wandb_name distill_test \
