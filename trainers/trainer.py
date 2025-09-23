@@ -292,6 +292,47 @@ def threshold_difference_data(difference_data, threshold_ratio=0.9):
                                 difference_data)
     return difference_data
 
+def show_comparison_results(model, draw_loader, epoch, rank_plan):
+    model.eval()
+    pbar = tqdm(draw_loader, desc='Presenting', ncols=120)
+    if rank_plan != None:
+        model.apply(lambda m: set_rank_plan_to_layer(m, rank_plan))
+    with torch.no_grad():
+        for data, label in pbar:
+            if data.device != args.device:
+                data = data.to(args.device)
+                label = label.to(args.device)
+            vq_loss, data_recon, perplexity = model(data)
+            draw_example_images(data, label, data_recon, epoch, rank_plan)
+    pbar.close()
+    
+def draw_example_images(input_data, target_data, recon_data, epoch, rank_plan):
+    input_data_ = input_data.clone().cpu()
+    target_data_ = target_data.clone().cpu()
+    recon_data_ = recon_data.clone().cpu()
+    batch_size = input_data_.shape[0]
+    
+    # 将图像数据范围从[-1,1]调整到[0,1]
+    input_data_ = (input_data_ + 1) / 2
+    target_data_ = (target_data_ + 1) / 2
+    recon_data_ = (recon_data_ + 1) / 2
+    
+    # 创建图像字典用于wandb
+    log_dict = {}
+    for i in range(min(batch_size, 3)):  # 限制最多显示3张图片
+        # 创建图像字典，包含输入、目标和重建图像
+        if rank_plan==None:
+            log_dict.update({
+                f'Img_Input/Img_{i}': wandb.Image(input_data_[i]),
+                f'Img_Target/Img_{i}': wandb.Image(target_data_[i]),
+                f'Img_NonAligned/Img_{i}': wandb.Image(recon_data_[i])
+            })
+        else:
+            log_dict[f'Img_DK_L{rank_plan}/Img_{i}'] = wandb.Image(recon_data_[i])
+    
+    # 使用wandb记录图像
+    wandb.log(log_dict, step=epoch)
+
 def test_anomaly_detection(model_anomaly_recon, model_anomaly_erase, data_loader, writer, rank_plan=None):
     model_anomaly_recon.eval()
     model_anomaly_erase.eval()
@@ -320,41 +361,3 @@ def test_anomaly_detection(model_anomaly_recon, model_anomaly_erase, data_loader
             print(f"!!! Draw example comparison images")
             flag_first_batch = False
 
-def draw_example_images(input_data, target_data, recon_data, epoch, writer, flag_draw_histogram=False):
-    input_data_ = input_data.clone().cpu()
-    target_data_ = target_data.clone().cpu()
-    recon_data_ = recon_data.clone().cpu()
-    batch_size = input_data_.shape[0]
-    
-    # 将图像数据范围从[-1,1]调整到[0,1]
-    input_data_ = (input_data_ + 1) / 2
-    target_data_ = (target_data_ + 1) / 2
-    recon_data_ = (recon_data_ + 1) / 2
-    
-    # 创建网格图像
-    for i in range(min(batch_size, 4)):  # 限制最多显示8张图片
-        # 在writer里添加一个
-        if flag_draw_histogram:
-            # 将图像数据展平为一维数组
-            recon_flat = recon_data_[i].flatten()
-            target_flat = target_data_[i].flatten()
-            
-            # 添加分布图，设置bins参数来使分布更平滑
-            writer.add_histogram(
-                f'Test/Anomaly_Detection/Recon_Distribution_{i}', 
-                recon_flat, 
-                epoch,
-                bins='auto',  # 自动选择bin数量
-                max_bins=50   # 限制最大bin数量以获得更平滑的分布
-            )
-            writer.add_histogram(
-                f'Test/Anomaly_Detection/Target_Distribution_{i}', 
-                target_flat, 
-                epoch,
-                bins='auto',
-                max_bins=50
-            )
-        writer.add_image(f'Test/Input_Image_{i}', input_data_[i], epoch)
-        writer.add_image(f'Test/Target_Image_{i}', target_data_[i], epoch)
-        writer.add_image(f'Test/Reconstructed_Image_{i}', recon_data_[i], epoch)
-    writer.flush()

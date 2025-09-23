@@ -25,7 +25,7 @@ def prepare_for_lora_training(model):
     # 预先对model引入lora进行一些必要的设置。
     model.apply(lambda m: m.backup_changes() if hasattr(m, 'backup_changes') else None)
     
-    # model.apply(add_lora_changes_to_layer)
+    # model.apply(add_lora_changes_to_layer) 
     model.apply(lambda m: m.obtain_full_ft_sigvalue() if hasattr(m, 'obtain_full_ft_sigvalue') else None)
     model.module.set_no_change_vq(args.no_change_vq)
     model.module.set_finetune_vq(args.finetune_vq)
@@ -86,12 +86,13 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
         distill_dataloader_test, distill_dataloader_draw = get_distill_dataloader(task_name, model, None, "test", directly_load, flag_use_ori_label)
 
     trainer = getattr(trainers, args.trainer)
-    train, test = trainer.train, trainer.test
+    train, test, drawer = trainer.train, trainer.test, trainer.show_comparison_results
     criterion, IFL_feature_extractor = prepare_criterion()
 
     # 测试一下，如果没有和任务对齐的话，也就是使用原始预训练参数的话，loss是怎么样的。
     model.apply(lambda m: setattr(m, "pretrain", True)) 
     test_total_loss = test(model, criterion, distill_dataloader_test, 0, verbose=True, flag_draw_example_images=False, criterion_IFL=IFL_feature_extractor)
+    drawer(model, distill_dataloader_draw, epoch=0, rank_plan=None)
     model.apply(lambda m: setattr(m, "pretrain", False))
 
     prepare_for_lora_training(model)
@@ -104,7 +105,6 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
     total_epochs = 0
 
     # 进行lora的训练过程
-    assert len(paraBgt_list) == 1, "在trainDynamic中，只使用一个rank plan。从而方便对比出来影响"
     last_bgt = paraBgt_list[-1]
     _, max_rank_list = allocate_rank_given_mat_and_index(sigvalueVparam_mat, cumsum_parameter_ratio_vec, last_bgt, module_list, total_num_params, prev_rank_list)
     for idx, m in enumerate(module_list):
@@ -135,6 +135,10 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
         # 这个评估将会非常耗时。
         rkp = np.mod(total_epochs, len(paraBgt_list))
         test_total_loss = test(model, criterion, distill_dataloader_test, total_epochs, verbose=True, flag_draw_example_images=False, rank_plan=rkp, criterion_IFL=IFL_feature_extractor)
+        if epoch % 10 == 0:
+            for rkp in range(len(paraBgt_list)):
+                print(f"!!! Draw example images at epoch {total_epochs}, rank plan {rkp}")
+                drawer(model, distill_dataloader_draw, epoch=total_epochs, rank_plan=rkp)
         # wandb.log({f"test/Test_Epoch_Loss": test_total_loss}, step=total_epochs)
         
         # if test_total_loss < cur_min_loss:

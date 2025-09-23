@@ -26,13 +26,14 @@ from source.args import args, config_set_args
 def main():
     fire.Fire(main_program)
 
-def main_program(gpu_id: int, # 使用的GPU的序号
+def main_program(gpu_id: int, # the index of the GPU to use
                  wandb_name: str="distill_test", # wandb name
-                 loraSra_paraBgt_list: list[int]=[1], # loraSra_paraBgt_list 是 compression levels, 1代表 distilled knowledge 参数量为原总参数的1%
+                 loraSra_paraBgt_list: list[int]=[1], # loraSra_paraBgt_list is the compression levels, 1 means the distilled knowledge is 1% of the total parameters
                  lr: float=0.0005, # learning rate
-                 flag_directly_load: bool=True, # 直接加载经过预处理的数据集
-                 config_name: str="base_config", # 使用的config文件
+                 flag_directly_load: bool=True, # directly load the preprocessed dataset
+                 config_name: str="base_config", # the name of theconfig file to use
                  ):
+    print(f"at main_program, loraSra_paraBgt_list: {loraSra_paraBgt_list}")
     GPU_ID = gpu_id
     print(f"[!] Using GPU {GPU_ID}")
     args.config_root = "./configs/"
@@ -61,7 +62,6 @@ def main_program(gpu_id: int, # 使用的GPU的序号
         args.loraSra_paraBgt_list = loraSra_paraBgt_list
         args.lr = lr
         args.flag_directly_load = flag_directly_load
-        # main_eval_2_rev1(task,flag_directly_load)
         args.add_str_to_run_base_dir = f"_{datetime.now().strftime('%m%d_%H%M')}"
         multi_level_DK_distill(task, flag_directly_load)
 

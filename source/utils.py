@@ -193,15 +193,14 @@ def allocate_rank_given_mat_and_index(sigvalueVparam_mat, cumsum_parameter_ratio
 
         adding_param_num = np.sum(m_i.parameter_per_rank[:new_lora_rank_specific])
         selected_param_num += adding_param_num
-        print(f"Allocate lora rank to layer {idx} {m_i.module_name} {last_rank_specific}->{new_lora_rank_specific}|{max_rank} {add_str}")
+        print(f"Allocate lora rank to layer {idx} {m_i.module_name} {last_rank_specific}->{new_lora_rank_specific}|MAX {max_rank} {add_str}")
 
         new_rank_list.append(new_lora_rank_specific)
         rank_increase = new_lora_rank_specific - last_rank_specific
         rank_change_list.append(rank_increase)
 
     real_budget = selected_param_num / total_num_params
-    print(f"====> INFO Selected parameter number: {selected_param_num}, parameter budget satisfies: {real_budget:.6f}% target budget: {parameter_budget:.6f}")
-    wandb.config.update({"rank_list": str(new_rank_list)})
+    print(f"====> INFO Selected parameter number: {selected_param_num}, parameter budget satisfies: {real_budget:.4f} target budget: {parameter_budget:.4f}")
     return new_rank_list, rank_change_list
 
 def gen_optimizer_and_scheduler_loraSRA_list(
