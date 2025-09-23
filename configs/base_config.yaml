@@ -1,0 +1,123 @@
+#========================================
+# model related parameters
+model: VQVAE_ps
+resize_width: 224
+num_hiddens: 128 # the base number of channels in each layer
+num_residual_hiddens: 64 # the bottleneck block design, helps the network learn more compact feature representations
+num_residual_layers: 3
+in_ch: 3 # the dimension of the input image
+num_embeddings: 512
+embedding_dim: 128
+## model layer structure
+conv_type: MultitaskMaskConvChange
+deconv_type: MultitaskMaskDeConvChange
+bn_type: NonAffineNoStatsBN # MultitaskNonAffineBN
+conv_init: signed_constant 
+deconv_init: signed_constant
+embedding_type: MultitaskMaskEmbeddingChange
+use_my_embedding: True
+conv_use_bias: False
+num_tasks: 1
+num_ft_changes: 1
+#========================================
+
+# vq-vae related parameters
+#========================================
+no_change_vq: True # do not EWA the vq embedding during fine-tuning
+finetune_vq: True # but fine-tune the vq embedding
+commitment_cost: 0.25 # vae commitment cost weight
+decay: 0.99
+#========================================
+
+# training related parameters
+#========================================
+trainer: "default_ps"
+lr: 0.001
+epochs_loraDstill: 20 # epochs for lora distillation
+milestones_lora: [40] # scheduler milestones for fine-tuning
+iter_lim: -1
+reinit_changes_from_zero: True
+lora_weight_org_ver: 2 # different type of lora matrix formation for cnn layers
+imagenet_style_normalize: True
+lambda_IFL: 0.05 # IFL loss weight
+save_curbest_model: True
+warmup_IFL: False # whether to warmup the IFL loss
+#========================================
+
+
+# dataloader related parameters
+# ========================================
+batch_size: 128
+test_batch_size: 128
+# ========================================
+
+
+# lora related parameters
+#========================================
+enable_lora: True
+loraSra_paraBgt_list: [1,3,5] # default loraSra parameter budget list
+with_lora_change: True
+lora_rank: 0 # default lora rank, will be overridden by the loraSra_paraBgt_list
+lora_alpha: 16 # default lora alpha
+#========================================
+
+# task related parameters, used when generating the distill dataset
+#========================================
+broken_pixel_ratio: 0.1
+low_resolution_ratio: 4
+bias_color_channel: 0
+bias_color_ratio: [0.1,0.3]
+anomaly_num_max: 10
+anomaly_size: 8
+anomaly_poly_order: 6
+#========================================
+
+# random seed related parameters
+#========================================
+seed: 2
+distill_dataset_seed: 2
+fix_np_seed: True
+#========================================
+
+# checkpoint related parameters
+#========================================
+save_chk_point: False
+log_dir: logs
+
+# pre-ft checkpoint load path
+# ========================================
+pre_ft_ckp_name: FT_curBest
+pre_ft_dir_case_resEnhance: ckpt_models/full_ft_low_resolution
+pre_ft_dir_case_colorCorrect: ckpt_models/full_ft_color_correction
+pre_ft_dir_case_noiseRemove: ckpt_models/full_ft_noise_removal
+pre_ft_dir_case_anomalyDetect: ckpt_models/full_ft_anomaly_detection
+# ========================================
+
+# shared distill dataset save path
+# ========================================
+saveDir_distill_dataset: datasets/distilled_dataset 
+# ========================================
+
+# task related parameters, used when training the model
+#========================================
+task_list: ["resEnhance"] # "colorCorrect", "noiseRemove", "anomalyDetect"
+load_distill_dataset_resEnhance: True
+load_distill_dataset_colorCorrect: True
+load_distill_dataset_noiseRemove: True
+load_distill_dataset_anomalyDetect: True
+#========================================
+
+# training process control
+#========================================
+save_curbest_model: False # save the current best model
+milestones_scheduler: [1000] # milestones for the scheduler
+gamma_scheduler: 0.1 # learning rate decay coefficient
+pre_train: False # whether to pre-train the model
+#========================================
+
+# result display related parameters
+#========================================
+flag_output_test_set_image: True
+to_save_list: [237,591, 87, 925, 235, 221]
+#========================================
+
