@@ -1,6 +1,4 @@
-from copy import deepcopy
 import argparse
-import sys
 import yaml
 import os
 
@@ -130,12 +128,12 @@ def get_config(args):
     # get commands from command line
     try:
         # load yaml file
-        # 打印当前目录
+        # print the current directory
         print(f"[!] Current directory: {os.getcwd()}")
         with open(args.config) as f:
             loaded_yaml = yaml.safe_load(f)
         
-        # 然后用当前配置更新args
+        # then update args with the current config
         args.__dict__.update(loaded_yaml)
         print(f"=> Reading YAML config from {args.config}")
             
@@ -156,7 +154,7 @@ def config_set_args(kwargs):
     get_config(args)
 
     for flag, val in kwargs.items():
-        # 把flag中的-替换为_
+        # replace the - in flag with _
         flag = flag.replace('-', '_')
         args.__dict__[flag] = val
 

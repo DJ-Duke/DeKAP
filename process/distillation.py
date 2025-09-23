@@ -1,22 +1,11 @@
 import datetime
 from datetime import datetime
-from copy import deepcopy
-from multiprocessing import Process, Queue
-from itertools import product
-import sys, os
-import numpy as np
-import time
-import argparse
-import torch
-import pathlib
-import fire
-from tqdm import tqdm
-
-from pathlib import Path
-
-# 获取当前文件的上级目录
-PROJECT_ROOT = Path(__file__).parent.parent
 import sys
+import fire
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
 print(f"[!] Project root is now set to: {PROJECT_ROOT}")
 

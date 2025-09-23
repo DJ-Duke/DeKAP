@@ -25,7 +25,7 @@ def set_seeds(given_seed=None):
 def load_from_ckp(model, dir, model_name):
     resume_run_base_dir = pathlib.Path(f"{dir}/{model_name}.pt")
     checkpoint = torch.load(resume_run_base_dir, map_location=f"cuda:{args.multigpu[0]}")
-    # 只保留当前模型中存在的参数
+    # only keep the parameters that exist in the current model
     pretrained_dict = {
         k: v for k, v in checkpoint.items() if k in model.state_dict()
     }

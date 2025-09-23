@@ -1,5 +1,5 @@
 #!/bin/bash
-# bash run_script/debug.sh
+# bash run_script/run_distillation.sh
 # Activate the virtual environment
 source .venv/bin/activate
 

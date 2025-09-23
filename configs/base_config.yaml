@@ -1,17 +1,14 @@
-# 基础参数配置
-# 详细参数来源于：z_paper_evaluations/configs/subconfig_rev_eval_1.yaml
-
 #========================================
-# model 有关的参数部分
+# model related parameters
 model: VQVAE_ps
 resize_width: 224
-num_hiddens: 128 # 每一层channel维度的基数
-num_residual_hiddens: 64 # 类似于ResNet中的瓶颈块设计，可以帮助网络学习更紧凑的特征表示
+num_hiddens: 128 # the base number of channels in each layer
+num_residual_hiddens: 64 # the bottleneck block design, helps the network learn more compact feature representations
 num_residual_layers: 3
-in_ch: 3 # 输入图像的维度
+in_ch: 3 # the dimension of the input image
 num_embeddings: 512
 embedding_dim: 128
-## 模型层结构
+## model layer structure
 conv_type: MultitaskMaskConvChange
 deconv_type: MultitaskMaskDeConvChange
 bn_type: NonAffineNoStatsBN # MultitaskNonAffineBN
@@ -24,66 +21,47 @@ num_tasks: 1
 num_ft_changes: 1
 #========================================
 
-# 和vq有关的参数
+# vq-vae related parameters
 #========================================
-no_change_vq: True # 不对vq的embedding进行自动的EWA
-finetune_vq: True # 但是仍然fine-tune vq embedding
-commitment_cost: 0.25
+no_change_vq: True # do not EWA the vq embedding during fine-tuning
+finetune_vq: True # but fine-tune the vq embedding
+commitment_cost: 0.25 # vae commitment cost weight
 decay: 0.99
 #========================================
 
-# 和优化训练有关的参数
+# training related parameters
 #========================================
 trainer: "default_ps"
 lr: 0.001
-epochs_loraDstill: 20
-milestones_lora: [40]
+epochs_loraDstill: 20 # epochs for lora distillation
+milestones_lora: [40] # scheduler milestones for fine-tuning
 iter_lim: -1
 reinit_changes_from_zero: True
-lora_weight_org_ver: 2
+lora_weight_org_ver: 2 # different type of lora matrix formation for cnn layers
 imagenet_style_normalize: True
-lambda_IFL: 0.05
+lambda_IFL: 0.05 # IFL loss weight
 save_curbest_model: True
-opt_topology: False
-milestones_other: [40]
-mask_init_method: "weight"
-warmup_IFL: False
+warmup_IFL: False # whether to warmup the IFL loss
 #========================================
 
 
-# 和dataloader有关的参数
+# dataloader related parameters
 # ========================================
 batch_size: 128
 test_batch_size: 128
 # ========================================
 
-# 和数据集有关的参数
-#========================================
-data: /workspace0/jhu2/Projects/VQVAE/data
-set: EvalDataset
-dataset_loading_workers: 10
-prestage_loading_all_data: True
-FT_num_selected_label: 10
-#========================================
 
-
-# 和lora有关的参数
+# lora related parameters
 #========================================
 enable_lora: True
-enable_dora: False
-rank: 1
-alpha: 16
-dora_simple: False
-loraSra_paraBgt_list: [1,3,5]
+loraSra_paraBgt_list: [1,3,5] # default loraSra parameter budget list
 with_lora_change: True
-lora_rank: 0
-lora_alpha: 16
-flag_save_weight_matrix: False
-FLAG_RETURN_SIGVALUE_MAGNITUDE_RATIO: True
-flag_reinit_in_separate_training: True
+lora_rank: 0 # default lora rank, will be overridden by the loraSra_paraBgt_list
+lora_alpha: 16 # default lora alpha
 #========================================
 
-# 具体任务 task 有关的参数部分
+# task related parameters, used when generating the distill dataset
 #========================================
 broken_pixel_ratio: 0.1
 low_resolution_ratio: 4
@@ -94,19 +72,19 @@ anomaly_size: 8
 anomaly_poly_order: 6
 #========================================
 
-# 和随机种子有关的参数
+# random seed related parameters
 #========================================
 seed: 2
 distill_dataset_seed: 2
 fix_np_seed: True
 #========================================
 
-# 和 checkpoint 有关的参数
+# checkpoint related parameters
 #========================================
 save_chk_point: False
 log_dir: logs
 
-# 四个任务的pre-ft checkpoint 的所在目录
+# pre-ft checkpoint load path
 # ========================================
 pre_ft_ckp_name: FT_curBest
 pre_ft_dir_case_resEnhance: ckpt_models/full_ft_low_resolution
@@ -115,13 +93,13 @@ pre_ft_dir_case_noiseRemove: ckpt_models/full_ft_noise_removal
 pre_ft_dir_case_anomalyDetect: ckpt_models/full_ft_anomaly_detection
 # ========================================
 
-# 共用的distill dataset的保存路径
+# shared distill dataset save path
 # ========================================
 # saveDir_distill_dataset: datasets/distilled_dataset # distill dataset要放在这里。 # 目前是测试用暂时注释掉了这个路径，用了原来程序的文件路径。
 saveDir_distill_dataset: /workspace0/jhu2/Projects/ZFFT_supsup/z_paper_evaluations/generated_distill_dataset
 # ========================================
 
-# 四个具体任务相关的参数
+# task related parameters, used when training the model
 #========================================
 task_list: ["resEnhance"] # "colorCorrect", "noiseRemove", "anomalyDetect"
 load_distill_dataset_resEnhance: True
@@ -130,18 +108,15 @@ load_distill_dataset_noiseRemove: True
 load_distill_dataset_anomalyDetect: True
 #========================================
 
-# 训练过程的控制
+# training process control
 #========================================
-flag_jump_test: False # 跳过测试
-save_curbest_model: False # 保存当前最好的模型
-milestones_scheduler: [1000] # 优化器学习率衰减的里程碑
-gamma_scheduler: 0.1 # 优化器学习率衰减系数
-DEBUG_MODE: False
-epochs_train_per_DK_level: 100 # 每个Distilled Knowledge Level对应的训练的epochs 数量
-pre_train: False
+save_curbest_model: False # save the current best model
+milestones_scheduler: [1000] # milestones for the scheduler
+gamma_scheduler: 0.1 # learning rate decay coefficient
+pre_train: False # whether to pre-train the model
 #========================================
 
-# 有关结果展示的参数
+# result display related parameters
 #========================================
 flag_output_test_set_image: True
 to_save_list: [237,591, 87, 925, 235, 221]

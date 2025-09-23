@@ -11,15 +11,9 @@ class Builder(object):
         self.bn_layer = getattr(modules, args.bn_type)
         self.conv_init = getattr(init, args.conv_init)
         
-        #========================================
-        # 以下是ZFFT中添加的
-        #========================================
         self.deconv_layer = getattr(modules, args.deconv_type)
         self.deconv_init = getattr(init, args.deconv_init)
 
-        #========================================
-        # 以下是VQ-VAE中添加的
-        #========================================
         self.embedding_layer = getattr(modules, args.embedding_type)
 
     def activation(self):
@@ -36,7 +30,7 @@ class Builder(object):
         bias=None
     ):
         if bias is None:
-            bias_flag = args.conv_use_bias # 是不是没有bias的原因导致VQVAE的性能不好？
+            bias_flag = args.conv_use_bias 
         else:
             bias_flag = bias
         if kernel_size == 1:
@@ -117,7 +111,7 @@ class Builder(object):
         )
         return c
     
-    def conv4x4( #我自己加的
+    def conv4x4( 
         self, in_planes, out_planes, stride=1, first_layer=False, last_layer=False, bias=None
     ):
         """3x3 convolution with padding"""
@@ -184,7 +178,7 @@ class Builder(object):
     
     def deconv3x3(self, in_planes, out_planes, stride=1, output_padding=1, bias=None):
         if bias is None:
-            bias_flag = args.conv_use_bias # 是不是没有bias的原因导致VQVAE的性能不好？
+            bias_flag = args.conv_use_bias
         else:
             bias_flag = bias
         deconv =  self.deconv_layer(
@@ -201,7 +195,7 @@ class Builder(object):
     
     def deconv4x4(self, in_planes, out_planes, stride=1, output_padding=1, bias=None):
         if bias is None:
-            bias_flag = args.conv_use_bias # 是不是没有bias的原因导致VQVAE的性能不好？
+            bias_flag = args.conv_use_bias 
         else:
             bias_flag = bias
         deconv =  self.deconv_layer(

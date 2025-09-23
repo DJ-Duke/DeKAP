@@ -1,8 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.nn.functional import relu, avg_pool2d
-from torch.distributions.normal import Normal
-from torch.distributions import kl_divergence
 from torch.nn import functional as F
 
 from source.args import args
@@ -110,7 +107,6 @@ class VQVAE_decoder(nn.Module):
         builder = Builder()
         activation = nn.ReLU(True)
 
-        # 保持高分辨率特征处理用普通卷积
         self.layer1_conv = conv3x3(in_channels, num_hiddens, builder, stride=1)
         
         self.resblk = ResidualStack(in_channels=num_hiddens,
@@ -119,11 +115,11 @@ class VQVAE_decoder(nn.Module):
                         num_residual_hiddens=num_residual_hiddens, 
                         builder=builder)
         
-        # 第一次上采样用反卷积（因为特征还比较抽象，可学习性更重要）
+        # the first upsampling use deconv4x4 (because the feature is still abstract, the learnability is more important)
         self.layer2_deconv = deconv4x4(num_hiddens, num_hiddens//2, builder, stride=2, output_padding=0)
         self.relu1 = activation
         
-        # 第二次上采样用上采样+卷积（因为接近输出，避免棋盘格效应更重要）
+        # the second upsampling use upsampling + conv (because it is close to the output, the avoidability of the checkerboard effect is more important)
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.layer3_conv = conv3x3(num_hiddens//2, 3, builder)
 
@@ -132,11 +128,11 @@ class VQVAE_decoder(nn.Module):
         x = self.layer1_conv(z)
         x = self.resblk(x)
         
-        # 第一次上采样
+        # the first upsampling
         x = self.layer2_deconv(x)
         x = self.relu1(x)
         
-        # 第二次上采样
+        # the second upsampling
         x = self.upsample(x)
         x = self.layer3_conv(x)
         x = F.sigmoid(x)   
@@ -144,22 +140,13 @@ class VQVAE_decoder(nn.Module):
         return 2 * x - 1
 
 class VectorQuantizerEMA(nn.Module):
-    '''
-    Embedding 目前我们不考虑用sparse mask, 其实后面可以改成也需要的。在FT的时候是要Fix住的。不过后面也可以修改成为同样需要改的。不过估计EMA的不行，如果同样需要对Embedding进行修改的话，那么需要用非EMA的才行。
-    '''
     def __init__(self, num_embeddings, embedding_dim, commitment_cost, decay, epsilon=1e-5, no_change_vq = False):
         super(VectorQuantizerEMA, self).__init__()
         
         self._embedding_dim = embedding_dim
         self._num_embeddings = num_embeddings
         builder = Builder()
-        '''
-        以均匀分布进行初始化困惑度会更高。训练的也会更快。normal()来说。normal()可能一开始会陷入困惑的的陷阱。
-        '''
-        # if args.use_my_embedding:
-        #     self._embedding = modules.MultitaskMaskEmbeddingChange(self._num_embeddings, self._embedding_dim)
-        # else:
-        #     self._embedding = nn.Embedding(self._num_embeddings, self._embedding_dim)
+
         self._embedding = builder.embedding_layer(self._num_embeddings, self._embedding_dim)
         self._embedding.weight.data.uniform_(-1/self._num_embeddings, 1/self._num_embeddings)
         self._commitment_cost = commitment_cost
@@ -236,7 +223,7 @@ class VectorQuantizerEMA(nn.Module):
         return loss, quantized.permute(0, 3, 1, 2).contiguous(), perplexity, encodings
 
     def output_encoding_indices(self, inputs):
-        # 类似forward, 但不是输出查表后的向量，只是输出离散embeddin
+        # similar to forward, but not output the vector after the lookup table, only output the discrete embedding
         # convert inputs from BCHW -> BHWC
         inputs = inputs.permute(0, 2, 3, 1).contiguous()
         input_shape = inputs.shape
@@ -283,7 +270,6 @@ class VQVAE_full_ps(nn.Module):
 
         builder = Builder()
 
-        # num_hiddens=128, num_residual_layers=2, num_residual_hiddens=32
         self.encoder = VQVAE_encoder(num_hiddens=num_hiddens, num_residual_layers=num_residual_layers, num_residual_hiddens=num_residual_hiddens)
 
         self.pre_vq_conv = conv1x1(num_hiddens, embedding_dim, builder, stride=1)
@@ -295,18 +281,14 @@ class VQVAE_full_ps(nn.Module):
     def forward(self, x):
         z = self.encoder(x)
         z = self.pre_vq_conv(z)
-
-
         loss, quantized, perplexity, _ = self.vector_quantizer(z)
-
         if getattr(self, "flag_with_equalizer", False):
             quantized = self.equalizer(quantized)
-
         x_recon = self.decoder(quantized)
         return loss, x_recon, perplexity
     
     def set_finetune_vq(self, finetune_vq):
-        # 在FT的阶段, 是否计算VQ的quantized 到 inputs的损失
+        # in the FT stage, whether to calculate the loss of the quantized to inputs
         self.vector_quantizer.finetune_vq = finetune_vq
 
     def set_no_change_vq(self, no_change_vq):
@@ -315,15 +297,11 @@ class VQVAE_full_ps(nn.Module):
     
     def adding_equalizer_layer(self, num_layers=3):
         self.flag_with_equalizer = True
-        # 使用与模型相同的device
         device = next(self.parameters()).device
         self.equalizer = Residual_Equalizer(args.embedding_dim, num_layers).to(device)
-        # 使用 Kaiming 初始化
         for layer in self.equalizer._layers:
             nn.init.kaiming_uniform_(layer.weight, mode='fan_in', nonlinearity='relu')
-            # use zero init
-            # layer.weight.data.zero_()
         print(f"Equalizer layer have number of parameters: {sum(p.numel() for p in self.equalizer.parameters())}")
 
-def VQVAE_ps(): # ZFFT中暂时使用的模型
+def VQVAE_ps(): 
     return VQVAE_full_ps(num_hiddens = args.num_hiddens, num_residual_layers = args.num_residual_layers, num_residual_hiddens = args.num_residual_hiddens, num_embeddings = args.num_embeddings, embedding_dim = args.embedding_dim, commitment_cost = args.commitment_cost, decay = args.decay)

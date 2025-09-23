@@ -20,9 +20,9 @@ def create_run_base_dir_task(task_name):
     return run_base_dir
 
 def prepare_for_lora_training(model):
-    # 进行压缩的过程。
+    # the preparation process of compression.
     model.apply(lambda m: hasattr(m, 'with_lora_change') and setattr(m, 'with_lora_change', True))
-    # 预先对model引入lora进行一些必要的设置。
+    # the necessary settings for the model to introduce lora.
     model.apply(lambda m: m.backup_changes() if hasattr(m, 'backup_changes') else None)
     
     # model.apply(add_lora_changes_to_layer) 
@@ -33,8 +33,7 @@ def prepare_for_lora_training(model):
 
 def prepare_criterion():
     criterion = F.mse_loss
-    # 设置perception的优化criterion
-    # 使用新的weights参数替代已废弃的pretrained参数
+    # set the optimization criterion for perception
     import torchvision.models as models
     from torchvision.models import VGG16_Weights
     vgg = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
@@ -45,8 +44,8 @@ def prepare_criterion():
 
 def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_label=False):
     '''
-    task_name: 具体任务的名称
-    flag_directly_load： 直接加载经过预处理的数据集
+    task_name: the name of the specific task
+    flag_directly_load: directly load the preprocessed dataset
     '''
     print(f"[INFO] parameter compression level: {args.loraSra_paraBgt_list}, learning rate: {args.lr}")
     run_base_dir = create_run_base_dir_task(task_name)
@@ -61,26 +60,26 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
         notes=""
     )
 
-    # 获取模型
+    # get the model
     model = get_model()
     model = set_gpu(model)
     model.apply(add_changes_to_layer)
-    # 加载模型
+    # load the model
     preft_model_dir = getattr(args, f"pre_ft_dir_case_{task_name}")
     load_from_ckp(model, dir=preft_model_dir, model_name=args.pre_ft_ckp_name)
-    # 模型基础设置，保证运行在FT的阶段。
-    model.apply(lambda m: setattr(m, "change_idx", 0)) # 使用第几个stored change来进行训练
-    model.apply(lambda m: setattr(m, "pretrain", False)) # 告诉模型当前是finetune段，而非pretrain阶段。
+    # model basic settings, ensure the model is running in the FT stage.
+    model.apply(lambda m: setattr(m, "change_idx", 0)) # use the stored chagne of the given index for training
+    model.apply(lambda m: setattr(m, "pretrain", False)) # tell the model that current is the finetune stage, not the pretrain stage.
     naming_layers(model) # 命名模型中的各层并标记序号。
 
     model.apply(lambda m: hasattr(m, 'with_lora_change') and setattr(m, 'with_lora_change', True))
 
-    # 使用数据集, 这里假设通过eval_1已经生成了distill dataset，所以直接加载。
-    assert flag_directly_load is True, "在trainDynamic中，只使用直接加载数据集。"
-    #ANCHOR 1 获取数据集的部分
+    # use the dataset, here it is assumed that the distill dataset has been generated, so it can be loaded directly.
+    assert flag_directly_load is True, "in trainDynamic, only direct loading of the dataset is allowed."
+    #get the dataset
     directly_load = flag_directly_load
     if flag_directly_load is False:
-        raise NotImplementedError("[ERROR] 暂时只能使用已经打包好的数据集，后续代码正在整理中。")
+        raise NotImplementedError("[ERROR] only the preprocessed dataset can be loaded directly, future code release will support this.")
     else:
         distill_dataloader_train = get_distill_dataloader(task_name, model, None, "train", directly_load, flag_use_ori_label)
         distill_dataloader_test, distill_dataloader_draw = get_distill_dataloader(task_name, model, None, "test", directly_load, flag_use_ori_label)
@@ -89,9 +88,9 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
     train, test, drawer = trainer.train, trainer.test, trainer.show_comparison_results
     criterion, IFL_feature_extractor = prepare_criterion()
 
-    # 测试一下，如果没有和任务对齐的话，也就是使用原始预训练参数的话，loss是怎么样的。
+    # test the non-alignment loss when using the original pretrained parameters.
     model.apply(lambda m: setattr(m, "pretrain", True)) 
-    test_total_loss = test(model, criterion, distill_dataloader_test, 0, verbose=True, flag_draw_example_images=False, criterion_IFL=IFL_feature_extractor)
+    test_total_loss = test(model, criterion, distill_dataloader_test, 0, verbose=True, criterion_IFL=IFL_feature_extractor)
     drawer(model, distill_dataloader_draw, epoch=0, rank_plan=None)
     model.apply(lambda m: setattr(m, "pretrain", False))
 
@@ -104,7 +103,7 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
     cur_best_epoch = 0
     total_epochs = 0
 
-    # 进行lora的训练过程
+    # the lora training process
     last_bgt = paraBgt_list[-1]
     _, max_rank_list = allocate_rank_given_mat_and_index(sigvalueVparam_mat, cumsum_parameter_ratio_vec, last_bgt, module_list, total_num_params, prev_rank_list)
     for idx, m in enumerate(module_list):
@@ -128,26 +127,18 @@ def multi_level_DK_distill(task_name, flag_directly_load=True, flag_use_ori_labe
     optimizer, scheduler = gen_optimizer_and_scheduler_loraSRA_list(model, module_list, new_rank_list, None, using_one_optimizer_shcduler=True)
     cur_min_loss = 1000.0
     for epoch in range(1, train_epochs * len(paraBgt_list) + 1):
-        # 训练
+        # training
         total_epochs += 1
-        train(model, distill_dataloader_train, optimizer, criterion, total_epochs, None, verbose=False, random_rank_plans=len(paraBgt_list), criterion_IFL=IFL_feature_extractor)
+        train(model, distill_dataloader_train, optimizer, criterion, total_epochs, verbose=False, random_rank_plans=len(paraBgt_list), criterion_IFL=IFL_feature_extractor)
 
-        # 这个评估将会非常耗时。
+        # rkp means "rank plan"
         rkp = np.mod(total_epochs, len(paraBgt_list))
-        test_total_loss = test(model, criterion, distill_dataloader_test, total_epochs, verbose=True, flag_draw_example_images=False, rank_plan=rkp, criterion_IFL=IFL_feature_extractor)
+        test_total_loss = test(model, criterion, distill_dataloader_test, total_epochs, verbose=True, rank_plan=rkp, criterion_IFL=IFL_feature_extractor)
         if epoch % 10 == 0:
             for rkp in range(len(paraBgt_list)):
                 print(f"!!! Draw example images at epoch {total_epochs}, rank plan {rkp}")
                 drawer(model, distill_dataloader_draw, epoch=total_epochs, rank_plan=rkp)
-        # wandb.log({f"test/Test_Epoch_Loss": test_total_loss}, step=total_epochs)
-        
-        # if test_total_loss < cur_min_loss:
-        #     cur_min_loss = test_total_loss
-        #     print(f"!!! Current best PT at Epoch {total_epochs}, Test Total Loss: {test_total_loss:.2f}")
-        #     wandb.log({f"test/CurBestLoss": test_total_loss}, step=total_epochs+1)
-        #     if args.save_curbest_model:
-        #         torch.save(model.state_dict(), run_base_dir / f"LoRA_curBest.pt")
-        #     cur_best_epoch = total_epochs
+        # update the scheduler
         scheduler_list_update(scheduler)
         wandb.log({f"test/CurBestEpoch": cur_best_epoch}, step=total_epochs)
     wandb.finish()

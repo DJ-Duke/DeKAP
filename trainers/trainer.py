@@ -1,21 +1,14 @@
-import os
-
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
 from torchvision import transforms
-import cProfile
-import pstats
-import time 
 import wandb
 
 from source.args import args
 from source.utils import calculate_psnr
 
-def init(args):
-    pass
+
 
 def set_rank_plan_to_layer(module, rank_plan_idx):
     if hasattr(module, 'set_rank_plan'):
@@ -28,7 +21,7 @@ def calcualte_IFL_loss(criterion_IFL, data_recon, data_target):
     loss = F.mse_loss(real_feature, recon_feature)
     return loss
 
-def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, verbose=True, stop_iterations = -1, random_rank_plans=None, always_use_this_rank=None, criterion_IFL=None, diff_TxRx_rank_plan=False):
+def train(model, train_loader, optimizer, criterion, epoch, verbose=True, stop_iterations = -1, random_rank_plans=None, always_use_this_rank=None, criterion_IFL=None):
     model.zero_grad()
     model.train()
 
@@ -41,7 +34,6 @@ def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, ve
     if criterion_IFL is not None:
         train_IFL_loss = 0
 
-    # criterion 是不是 F.mse
     if criterion == F.mse_loss:
         variance_coeff = args.data_variance
     elif criterion == F.l1_loss:
@@ -51,16 +43,11 @@ def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, ve
         transform_for_IFL = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
     pbar = tqdm(train_loader, desc='Training', ncols=120)
-    # 直接遍历train_loader
-    # print(f"[*] 开始分析任务的性能...")
-    # profiler = cProfile.Profile()
-    # profiler.enable()3
     for batch_idx, (data, label) in enumerate(pbar):
 
         if stop_iterations > 0 and batch_idx >= stop_iterations:
             break
         if args.iter_lim < 0 or batch_idx < args.iter_lim:
-            # 检查数据是否已经在目标设备上
             if data.device != args.device:
                 data = data.to(args.device)
                 label = label.to(args.device)
@@ -74,15 +61,12 @@ def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, ve
                 optimizer.zero_grad()
             
             if random_rank_plans != None:
-                if not diff_TxRx_rank_plan:
-                    if always_use_this_rank is not None:
-                        random_plan_idx = always_use_this_rank
-                    else: # always_use_this_rank is None
-                        random_plan_idx = np.random.randint(0, random_rank_plans)
-                    model.apply(lambda m: set_rank_plan_to_layer(m, random_plan_idx))
-                else:
-                    random_plan_idx_Tx, random_plan_idx_Rx = np.random.randint(0, random_rank_plans, 2)
-                    model.apply(lambda m: set_TxRx_rank_plan_to_layer(m, random_plan_idx_Tx, random_plan_idx_Rx))
+                if always_use_this_rank is not None:
+                    random_plan_idx = always_use_this_rank
+                else: # always_use_this_rank is None
+                    random_plan_idx = np.random.randint(0, random_rank_plans)
+                model.apply(lambda m: set_rank_plan_to_layer(m, random_plan_idx))
+                
 
             if model.module.name == "VQVAE_ps":
                 vq_loss, data_recon, perplexity = model(data)
@@ -111,8 +95,7 @@ def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, ve
             else:
                 raise NotImplementedError(f"Model {model.module.name} not implemented")
             loss.backward()
-            # 加入一个对于梯度的clip
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # 需要加个裁剪，不然的话会在某一个epoch中出现突然恶化的现象。
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             if isinstance(optimizer, list):
                 for i in range(len(optimizer)):
                     if optimizer[i] is not None:
@@ -122,10 +105,7 @@ def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, ve
 
             pbar_string = f'Loss: {loss_print:.3f} ({recon_error.item():.3f}/{vq_loss.item():.3f}) Prplx: {perplexity:.3f} PSNR: {batch_psnr:.3f}dB'
             if random_rank_plans != None:
-                if not diff_TxRx_rank_plan:
-                    pbar_string += f' RP: {random_plan_idx}'
-                else:
-                    pbar_string += f' RP: {random_plan_idx_Tx}/{random_plan_idx_Rx}'
+                pbar_string += f' RP: {random_plan_idx}'
             if criterion_IFL is not None:
                 pbar_string += f' IFL: {IFL_loss.item():.3f} ({IFL_loss.item()*current_lambda:.3f})'
             pbar.set_postfix_str(
@@ -150,7 +130,7 @@ def train(model, train_loader, optimizer, criterion, epoch, data_loader=None, ve
         wandb.log({f"train/IFL_loss": train_IFL_loss}, step=epoch)
     print(f"=> Train Epoch {epoch}: Recon loss: {train_recon_loss:.4f}, Perplexity: {train_perplexity:.4f}, PSNR: {train_psnr:.4f}")
 
-def test(model, criterion, test_loader, epoch, verbose=True, flag_draw_example_images=False, rank_plan=None, criterion_IFL=None):
+def test(model, criterion, test_loader, epoch, verbose=True, rank_plan=None, criterion_IFL=None):
     model.zero_grad()
     model.eval()
     test_loss = 0
@@ -163,7 +143,6 @@ def test(model, criterion, test_loader, epoch, verbose=True, flag_draw_example_i
     num_samples = 0
     flag_first_batch = True
 
-    # criterion 是不是 F.mse
     if criterion == F.mse_loss:
         variance_coeff = args.data_variance
     elif criterion == F.l1_loss:
@@ -177,11 +156,9 @@ def test(model, criterion, test_loader, epoch, verbose=True, flag_draw_example_i
         model.apply(lambda m: set_rank_plan_to_layer(m, rank_plan))
     with torch.no_grad():
         for data, label in pbar:
-            # 检查数据是否已经在目标设备上
             if data.device != args.device:
                 data = data.to(args.device)
                 label = label.to(args.device)
-            # target = data.clone()
 
             if model.module.name == "VQVAE_ps":
                 vq_loss, data_recon, perplexity = model(data)
@@ -200,11 +177,7 @@ def test(model, criterion, test_loader, epoch, verbose=True, flag_draw_example_i
                 add_str = "VQVAE"
             else:
                 raise NotImplementedError(f"Model {model.module.name} not implemented")
-            
-            if flag_first_batch and epoch % 10 == 0 and flag_draw_example_images:
-                draw_example_images(data, label, data_recon, epoch, writer)
-                flag_first_batch = False
-                print(f"!!! Draw example images at epoch {epoch}")
+        
 
             test_psnr += batch_psnr * len(data)
             if criterion_IFL is not None:
@@ -270,23 +243,23 @@ def count_lora_rank_importance(model, train_loader, always_use_this_rank=None):
 
 def threshold_difference_data(difference_data, threshold_ratio=0.9):
     """
-    对差异数据进行阈值处理
+    threshold the difference data
     Args:
-        difference_data: 输入的差异数据张量 [B, C, H, W]
-        threshold_ratio: 阈值比例，默认0.8表示保留前20%的差异值
+        difference_data: input difference data tensor [B, C, H, W]
+        threshold_ratio: threshold ratio, default 0.8 means keep the top 20% of the difference values
     Returns:
-        处理后的差异数据张量
+        processed difference data tensor
     """
-    # 将数据展平处理
+    # flatten the data
     flat_diff = difference_data.view(difference_data.size(0), -1)
     
-    # 对每个样本分别计算阈值
+    # calculate the threshold for each sample
     thresholds = torch.quantile(flat_diff, threshold_ratio, dim=1)
     
-    # 将阈值扩展到与原始数据相同的形状
+    # extend the threshold to the same shape as the original data
     thresholds = thresholds.view(-1, 1, 1, 1)
     
-    # 应用阈值
+    # apply the threshold
     difference_data = torch.where(difference_data < thresholds, 
                                 torch.zeros_like(difference_data), 
                                 difference_data)
@@ -312,15 +285,15 @@ def draw_example_images(input_data, target_data, recon_data, epoch, rank_plan):
     recon_data_ = recon_data.clone().cpu()
     batch_size = input_data_.shape[0]
     
-    # 将图像数据范围从[-1,1]调整到[0,1]
+    # adjust the image data range from [-1,1] to [0,1]
     input_data_ = (input_data_ + 1) / 2
     target_data_ = (target_data_ + 1) / 2
     recon_data_ = (recon_data_ + 1) / 2
     
-    # 创建图像字典用于wandb
+    # create the image dictionary for wandb
     log_dict = {}
-    for i in range(min(batch_size, 3)):  # 限制最多显示3张图片
-        # 创建图像字典，包含输入、目标和重建图像
+    for i in range(min(batch_size, 3)):  # limit the maximum number of images to 3
+        # create the image dictionary, containing the input, target and reconstructed images
         if rank_plan==None:
             log_dict.update({
                 f'Img_Input/Img_{i}': wandb.Image(input_data_[i]),
@@ -330,7 +303,7 @@ def draw_example_images(input_data, target_data, recon_data, epoch, rank_plan):
         else:
             log_dict[f'Img_DK_L{rank_plan}/Img_{i}'] = wandb.Image(recon_data_[i])
     
-    # 使用wandb记录图像
+    # use wandb to record the images
     wandb.log(log_dict, step=epoch)
 
 def test_anomaly_detection(model_anomaly_recon, model_anomaly_erase, data_loader, writer, rank_plan=None):

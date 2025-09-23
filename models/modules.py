@@ -3,10 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 import numpy as np
-from tqdm import tqdm
-from scipy.stats import ortho_group
-import scipy.io
-import os
 
 from source.args import args as pargs
 
@@ -15,7 +11,6 @@ StandardBN = nn.BatchNorm2d
 
 def weight_to_matrix(weight, weight_type, force_v2=False):
     """
-    将卷积权重矩阵转换为二维矩阵形式
     
     Args:
         weight: shape (ch_out, ch_in, kernel_len, kernel_len)
@@ -47,7 +42,6 @@ def weight_to_matrix(weight, weight_type, force_v2=False):
         matrix = weight
     else:
         raise ValueError("weight_type must be 'conv' or 'deconv' or 'embed'")
-    # assert torch.allclose(weight, matrix.view(weight.shape)), "weight and matrix are not the same"
     
     return matrix
 
@@ -64,18 +58,14 @@ def obtain_full_ft_sigvalue_func(fullft_changes, weight_type, layer_name='', ori
     num_params = weight_matrix.numel()
     _, S, _ = torch.svd(weight_matrix)
     sigvalue_vec = S.cpu().numpy()
-
-    if getattr(pargs, "FLAG_RETURN_SIGVALUE_MAGNITUDE_RATIO", False): 
-        # 这个是提出的方法，综合来看这个效果最好。
-        sigvalue_magnitude = sigvalue_vec
-        cumsum_sigvalue_magnitude = np.cumsum(sigvalue_magnitude)
-        # sigvalue_magnitude_ratio = sigvalue_magnitude / sum_sigvalue_magnitude / parameter_per_rank * 100
-        cumsum_sigvalue_magnitude = np.insert(cumsum_sigvalue_magnitude, 0, 1e-1)
-        cumsum_sigvalue_magnitude = cumsum_sigvalue_magnitude[:-1]
-        sigvalue_magnitude_ratio = sigvalue_magnitude / cumsum_sigvalue_magnitude
-        sigvalue_vec = sigvalue_magnitude_ratio 
-        sigvalue_vec[0] += 20
     
+    sigvalue_magnitude = sigvalue_vec
+    cumsum_sigvalue_magnitude = np.cumsum(sigvalue_magnitude)
+    cumsum_sigvalue_magnitude = np.insert(cumsum_sigvalue_magnitude, 0, 1e-1)
+    cumsum_sigvalue_magnitude = cumsum_sigvalue_magnitude[:-1]
+    sigvalue_magnitude_ratio = sigvalue_magnitude / cumsum_sigvalue_magnitude
+    sigvalue_vec = sigvalue_magnitude_ratio 
+    sigvalue_vec[0] += 20
     
     
     maximum_rank = min(len(sigvalue_vec), num_params / parameter_per_rank)
@@ -89,7 +79,7 @@ def obtain_full_ft_sigvalue_func(fullft_changes, weight_type, layer_name='', ori
         parameter_per_rank_vec[-1] = num_params - (maximum_rank_minus_1 * parameter_per_rank)
         sigvalue_vec_original = sigvalue_vec
         sigvalue_vec = sigvalue_vec[:maximum_rank]
-        # 计算最后一个等效奇异值
+        # calcualte the last effective singular value
         last_effective_sigvalue = np.sqrt(np.sum(sigvalue_vec_original[maximum_rank:]**2))
         last_effective_sigvalue = min((last_effective_sigvalue, sigvalue_vec[maximum_rank_minus_1-1]-1e-6))
         sigvalue_vec[-1] = last_effective_sigvalue
@@ -107,7 +97,7 @@ class MultitaskMaskConvChange(nn.Conv2d):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if pargs.pre_train == 0: # Default false
+        if pargs.pre_train == 0: # Default true
             self.weight.requires_grad = False
 
         self.with_lora_change = getattr(pargs, "with_lora_change", False)
@@ -115,11 +105,11 @@ class MultitaskMaskConvChange(nn.Conv2d):
             self.lora_rank = pargs.lora_rank
             self.lora_rank_specific = self.lora_rank
             self.lora_alpha = pargs.lora_alpha
-            self.lora_scaling = self.lora_alpha #NOTE 如果动态改变lora_scaling, 效果会下降很多，因此还是不要动这里。
+            self.lora_scaling = self.lora_alpha 
             self.full_rank = False
 
     def add_changes(self):
-        """添加changes参数列表,用于存储每个任务的权重变化"""
+        # the changes store the expert knowledge for each task
         self.flag_with_changes = True
         self.changes = nn.ParameterList(
             [
@@ -127,27 +117,26 @@ class MultitaskMaskConvChange(nn.Conv2d):
                 for _ in range(pargs.num_ft_changes)
             ]
         )
-    def reinit_changes(self): # 基于LTH应当从初始点恢复的思想， 所以changes应当从0开始。
+    def reinit_changes(self): 
         for j in range(pargs.num_ft_changes):
-            self.changes[j].data = torch.zeros_like(self.changes[j].data) #self.backup_changes[j].data.clone().detach()
+            self.changes[j].data = torch.zeros_like(self.changes[j].data) 
             if self.with_lora_change:
                 nn.init.kaiming_uniform_(self.lora_A[j], a=math.sqrt(5))
                 nn.init.zeros_(self.lora_B[j])
 
     def backup_changes(self):
-        """备份当前的changes参数"""
+        # backup the current changes parameters
         self.backup_changes = [
             self.changes[j].data.clone().detach()
             for j in range(pargs.num_ft_changes)
         ]
     
     def restore_changes(self):
-        """从备份中恢复changes参数"""
+        # restore the changes parameters from the backup
         for j in range(pargs.num_ft_changes):
             self.changes[j].data = self.backup_changes[j]
         
     def forward(self, x):
-        # alphas, num_tasks_learned 这些参数应该是在reinit.py中定义的。
         if getattr(self, "pretrain", False):
             w = self.weight
             x = F.conv2d(
@@ -167,7 +156,6 @@ class MultitaskMaskConvChange(nn.Conv2d):
                 lora_changes = 0
             else:
                 sel_index = self.target_rank_to_use
-                # 将ParameterList转换为张量列表
                 lora_A_tensors = [self.lora_A_list[i] for i in range(sel_index)]
                 lora_B_tensors = [self.lora_B_list[i] for i in range(sel_index)]
                 lora_A_cat = torch.cat(lora_A_tensors, dim=0)
@@ -204,8 +192,8 @@ class MultitaskMaskConvChange(nn.Conv2d):
         return (in_channels * kernel_size * kernel_size + out_channels)
     
     def add_new_rank_list(self, max_alloc_rank):
-        # 这个程序就是直接把最大的rank分配，但是可以自主选择到底用多少的rank
-        self.flag_given_rank_list = True # 用来决定forward
+        # this function is to directly allocate the largest rank, but can choose how many ranks to actually use
+        self.flag_given_rank_list = True 
         weight_shape = self.weight.shape
         kernel_size = weight_shape[2] 
         in_channels = weight_shape[1]
@@ -279,16 +267,15 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
             for j in range(pargs.num_ft_changes)
         ]
 
-    def reinit_changes(self): # 基于LTH应当从初始点恢复的思想， 所以changes应当从0开始。
+    def reinit_changes(self): 
         for j in range(pargs.num_ft_changes):
-            # self.changes[j].data = torch.zeros_like(self.changes[j].data)
-            self.changes[j].data = torch.zeros_like(self.changes[j].data) #self.backup_changes[j].data.clone().detach()
+            self.changes[j].data = torch.zeros_like(self.changes[j].data) 
             if self.with_lora_change:
                 nn.init.kaiming_uniform_(self.lora_A[j], a=math.sqrt(5))
                 nn.init.zeros_(self.lora_B[j])
 
     def restore_changes(self):
-        """从备份中恢复changes参数"""
+        # restore the changes parameters from the backup
         for j in range(pargs.num_ft_changes):
             self.changes[j].data = self.backup_changes[j]
 
@@ -298,7 +285,7 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
             w = self.weight
             x = F.conv_transpose2d(
                 x, w, self.bias, self.stride, self.padding,
-                output_padding=self.output_padding,  # 新增output_padding参数
+                output_padding=self.output_padding,  
                 groups=self.groups, dilation=self.dilation
             )
             return x
@@ -307,7 +294,7 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
             w = self.weight + self.backup_changes[self.change_idx]
             x = F.conv_transpose2d(
                 x, w, self.bias, self.stride, self.padding,
-                output_padding=self.output_padding,  # 新增output_padding参数
+                output_padding=self.output_padding, 
                 groups=self.groups, dilation=self.dilation
             )
             return x
@@ -317,7 +304,6 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
                 lora_changes = 0
             else:
                 sel_index = self.target_rank_to_use
-                # 将ParameterList转换为张量列表
                 lora_A_tensors = [self.lora_A_list[i] for i in range(sel_index)]
                 lora_B_tensors = [self.lora_B_list[i] for i in range(sel_index)]
                 lora_A_cat = torch.cat(lora_A_tensors, dim=0)
@@ -329,7 +315,7 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
 
         x = F.conv_transpose2d(
             x, w, self.bias, self.stride, self.padding,
-            output_padding=self.output_padding,  # 新增output_padding参数
+            output_padding=self.output_padding, 
             groups=self.groups, dilation=self.dilation
         )
         
@@ -356,8 +342,7 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
         return (in_channels + out_channels* kernel_size* kernel_size)
     
     def add_new_rank_list(self, max_alloc_rank):
-        # 这个程序就是直接把最大的rank分配，但是可以自主选择到底用多少的rank
-        self.flag_given_rank_list = True # 用来决定forward
+        self.flag_given_rank_list = True 
         weight_shape = self.weight.shape
         kernel_size = weight_shape[2] 
         in_channels = weight_shape[0]
@@ -401,12 +386,12 @@ class MultitaskMaskDeConvChange(nn.ConvTranspose2d):
         self.target_rank_to_use = self.target_rank_plan_list[rank_plan_idx]
 
 
-class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self._embedding_dim)
+class MultitaskMaskEmbeddingChange(nn.Embedding): 
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if pargs.pre_train == 0: # Default false
+        if pargs.pre_train == 0: # Default true
             self.weight.requires_grad = False
 
         self.with_lora_change = getattr(pargs, "with_lora_change", False)
@@ -419,7 +404,6 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
 
 
     def add_changes(self):
-        """添加changes参数列表,用于存储每个任务的权重变化"""
         self.flag_with_changes = True
         self.changes = nn.ParameterList(
             [
@@ -429,7 +413,6 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
         )
 
     def backup_changes(self):
-        """备份当前的changes参数"""
         self.backup_changes = [
             self.changes[j].data.clone().detach()
             for j in range(pargs.num_ft_changes)
@@ -443,14 +426,12 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
                 nn.init.zeros_(self.lora_B[j])
             
     def restore_changes(self):
-        """从备份中恢复changes参数"""
         for j in range(pargs.num_ft_changes):
             self.changes[j].data = self.backup_changes[j]
 
     
     @property
     def my_weight(self):
-        # alphas, num_tasks_learned 这些参数应该是在reinit.py中定义的。
         if getattr(self, "pretrain", False):
             return self.weight
         
@@ -463,7 +444,6 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
                 lora_changes = 0
             else:
                 sel_index = self.target_rank_to_use
-                # 将ParameterList转换为张量列表
                 lora_A_tensors = [self.lora_A_list[i] for i in range(sel_index)]
                 lora_B_tensors = [self.lora_B_list[i] for i in range(sel_index)]
                 lora_A_cat = torch.cat(lora_A_tensors, dim=0)
@@ -495,8 +475,7 @@ class MultitaskMaskEmbeddingChange(nn.Embedding): # (self._num_embeddings, self.
     
 
     def add_new_rank_list(self, max_alloc_rank):
-        # 这个程序就是直接把最大的rank分配，但是可以自主选择到底用多少的rank
-        self.flag_given_rank_list = True # 用来决定forward
+        self.flag_given_rank_list = True 
         weight_shape = self.weight.shape
         num_embeddings = weight_shape[0]
         embedding_dim = weight_shape[1]

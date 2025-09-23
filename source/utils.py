@@ -1,15 +1,9 @@
-from PIL import Image
-import wandb
-import time
-import pathlib
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 import os
 import numpy as np
-from tqdm import tqdm
 from torch.optim.lr_scheduler import MultiStepLR
 
 import models
@@ -104,7 +98,7 @@ def get_distill_dataloader(task_name, model, data_loader, str_train_test, direct
         else:
             label_np = None
     else:
-        raise NotImplementedError("[ERROR] 暂时只能使用已经打包好的数据集，后续代码正在整理中。")
+        raise NotImplementedError("[ERROR] only the preprocessed dataset can be loaded directly, future code release will support this.")
     
     if flag_use_ori_label is False:
         distill_dataset = DistillDataset(data_np, data_recon_np)
@@ -131,7 +125,7 @@ def get_distill_dataloader(task_name, model, data_loader, str_train_test, direct
         return distill_dataloader
 
 def get_sigvalueVparam_mat(model):
-    # 是 allocate_model_lora_rank 函数的一部分，只获取 那个用来进行lora rank分配的参考矩阵，而暂时不实质上进行分配。
+    # is a part of the allocate_model_lora_rank function, only get the reference matrix for lora rank allocation, but not actually allocate.
     total_num_params = 0
     crosslayer_sigvalue_NparaRank_mat = np.zeros((0,3))
     module_list = []
@@ -144,7 +138,7 @@ def get_sigvalueVparam_mat(model):
 
             total_num_params += m.weight.numel()
             
-            # 构建每层的矩阵 [sigvalue, param_per_rank, module_index]
+            # build the matrix for each layer [sigvalue, param_per_rank, module_index]
             num_ranks = len(m.fullft_sigvalue_vec)
             layer_mat = np.zeros((num_ranks, 3))
             layer_mat[:,0] = m.fullft_sigvalue_vec
@@ -162,13 +156,13 @@ def get_sigvalueVparam_mat(model):
     
     print(f"Total number of parameters: {total_num_params}, number of layers: {module_index}")
     
-    # 按照奇异值（第一列）大小排序
-    idx_sort = np.argsort(crosslayer_sigvalue_NparaRank_mat[:,0])[::-1]  # 降序排列
+    # sort by the singular value (first column)
+    idx_sort = np.argsort(crosslayer_sigvalue_NparaRank_mat[:,0])[::-1]  # descending order
     sigvalueVparam_mat = crosslayer_sigvalue_NparaRank_mat[idx_sort]
     cumsum_parameter_ratio_vec = np.cumsum(sigvalueVparam_mat[:,1]) / total_num_params
     return sigvalueVparam_mat, cumsum_parameter_ratio_vec, module_list, total_num_params
 
-def allocate_rank_given_mat_and_index(sigvalueVparam_mat, cumsum_parameter_ratio_vec, parameter_budget_, module_list, total_num_params, last_rank_list=None, writer=None):
+def allocate_rank_given_mat_and_index(sigvalueVparam_mat, cumsum_parameter_ratio_vec, parameter_budget_, module_list, total_num_params, last_rank_list=None):
     parameter_budget = parameter_budget_ / 100.
     idx_select = np.where(cumsum_parameter_ratio_vec > parameter_budget)[0][0]
     index_select_vec = sigvalueVparam_mat[:idx_select,2]
