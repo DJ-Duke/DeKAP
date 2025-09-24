@@ -25,6 +25,7 @@ uv sync
 
 python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())" # Expected output: 2.4.1+cu124 12.4 True
 ```
+4. `wandb` is required for training visualization. Please create an account at [wandb.ai](https://wandb.ai/) and follow the official setup instructions. You will be prompted to log in with your account the first time you run the demo.
 
 ## Distillation Demo
 
@@ -58,4 +59,3 @@ Execute the distillation script:
 ```bash
 bash run_script/run_distillation.sh
 ```
-
