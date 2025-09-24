@@ -25,6 +25,7 @@ uv sync
 
 python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())" # Expected output: 2.4.1+cu124 12.4 True
 ```
+4. Need to use `wandb` for training visualization. It needs to register online ([Link](https://wandb.ai/)) to get an account to use. Please follow the guideline there.
 
 ## Distillation Demo
 
