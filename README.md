@@ -6,6 +6,7 @@ An implementation of DeKAP that enables efficient semantic communication through
 ## News
 - **2025-09-16** Our paper has been published in IEEE Communications Letters! Check it out: [Distillation-Enabled Knowledge Alignment Protocol for Semantic Communication in AI Agent Networks](https://ieeexplore.ieee.org/document/11134386)
 - **2025-09-23** Released the distillation demo. The allocation demo will be released soon.
+- **2025-10-03** We are sorry that, due to a temporary heavy workload, the release of the allocation demo will be paused for a little while. If you are interested and want the demo sooner, please star this repo and/or email us to let us know.
 
 ## Installation
 
