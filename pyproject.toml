@@ -42,8 +42,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# 可选：需要 Gurobi 的用户自己装 license 后再安装这一组
+# Optional: Gurobi license required before installing gurobipy
 gurobi = ["gurobipy"]
+# Knowledge-allocation benchmark (process/allocation.py): MIP + baselines
+allocation = ["gurobipy", "pygad", "cython", "setuptools"]
 
 [tool.uv]
 # uv 默认会在项目根目录创建 .venv
