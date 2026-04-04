@@ -1,3 +1,6 @@
 *.pt
-.idea
 .DS_Store
+.idea
+CLAUDE.md
+__pycache__/
+*.py[cod]
