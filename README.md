@@ -3,6 +3,8 @@
 
 DeKAP is a research codebase for efficient semantic communication through knowledge distillation.
 
+[中文版README](./README_CN.md)
+
 ## Quick Start
 
 If you just want to verify that the repository works, start here:
