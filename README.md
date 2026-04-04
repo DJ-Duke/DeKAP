@@ -3,6 +3,19 @@
 
 DeKAP is a research codebase for efficient semantic communication through knowledge distillation.
 
+If you find this repo useful to you research, please also cite [our paper](https://ieeexplore.ieee.org/abstract/document/11134386) in your work 😃
+```
+@ARTICLE{Hu25COMML_Distill,
+  author={Hu, Jingzhi and Ye Li, Geoffrey},
+  journal={IEEE Communications Letters}, 
+  title={Distillation-Enabled Knowledge Alignment Protocol for Semantic Communication in AI Agent Networks}, 
+  year={2025},
+  volume={29},
+  number={11},
+  pages={2541-2545},
+}
+```
+
 [中文版README](./README_CN.md)
 
 ## Quick Start

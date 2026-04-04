@@ -5,6 +5,19 @@ DeKAP 是一个研究代码库，通过知识蒸馏实现高效的语义通信�
 
 > 英文版说明见 [README.md](README.md)。
 
+如果您觉得这个Repo对您的研究有帮助，请您在工作中引用我们的[论文](https://ieeexplore.ieee.org/abstract/document/11134386)😃
+```
+@ARTICLE{Hu25COMML_Distill,
+  author={Hu, Jingzhi and Ye Li, Geoffrey},
+  journal={IEEE Communications Letters}, 
+  title={Distillation-Enabled Knowledge Alignment Protocol for Semantic Communication in AI Agent Networks}, 
+  year={2025},
+  volume={29},
+  number={11},
+  pages={2541-2545},
+}
+```
+
 ## 快速开始
 
 若你只想确认本仓库能否正常运行，从这里开始：
